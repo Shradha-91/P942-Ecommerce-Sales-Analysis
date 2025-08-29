@@ -1,0 +1,152 @@
+create database P942;
+use P942;
+create table Orders(
+order_id text,
+customer_id	text,
+order_status text,
+order_purchase_timestamp text,
+order_approved_at text,
+order_delivered_carrier_date text,
+order_delivered_customer_date text,
+order_estimated_delivery_datel text);
+
+alter table Orders add column Dayname text,
+				   add column Daytype text;
+alter table orders add column Average_days text;
+
+
+set global local_infile=on;
+
+TRUNCATE TABLE Orders;
+
+LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_orders_dataset.csv' 
+into table Orders
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"' 
+LINES TERMINATED BY '\r\n'
+IGNORE 1 rows;
+
+select * from orders;
+
+
+create table Customers(
+customer_id text,
+customer_unique_id text,
+customer_zip_code_prefix text,
+customer_city text,
+customer_state text,
+country text);
+
+LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_customers_dataset.csv'
+into TABLE customers
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 ROWS;
+
+create table Orders_items(
+order_id text,
+order_item_id text,
+product_id text,
+seller_id text,
+shipping_limit_date text,
+price text,
+freight_value text);
+
+LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_order_items_dataset.csv'
+into TABLE Orders_items
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 ROWS;
+
+create table Products(
+product_id text,
+product_category_name text,
+product_name_length text,
+product_description_length text,
+product_photos_qty text,
+product_weight_g text,
+product_length_cm text,
+product_height_cm text,
+product_width_cm text);
+
+LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_products_dataset.csv'
+into table Products
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 rows;
+
+CREATE TABLE Payments(order_id text,
+ payment_sequential text,
+ payment_type text,
+ payment_installments text,
+ payment_value text);
+ 
+ LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_order_payments_dataset.csv'
+ INTO TABLE Payments
+ FIELDS TERMINATED BY ','
+ ENCLOSED BY '"'
+ LINES TERMINATED BY '\r\n'
+ IGNORE 1 rows;
+ 
+ CREATE TABLE Reviews(
+ review_id text,
+ order_id text,
+ review_score text,
+ review_comment_title text,
+ review_comment_message text,
+ review_creation_date text,
+ review_answer_timestamp text
+);
+
+LOAD DATA LOCAL INFILE 'C:/Users/lokes/OneDrive/Documents/Desktop/LOKESH/Data Analyst/P942 ECOMMERCE PROJECT/Datasets/olist_order_reviews_dataset.csv'
+into TABLE Reviews
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 rows;
+
+
+-- KPI'
+
+-- FIRST KPI
+select o.Daytype, p.payment_type,concat(round(count(p.order_id)/1000,1),"k") as Orders_count,
+CASE
+WHEN SUM(p.payment_value) >= 1000000 THEN CONCAT(ROUND(SUM(p.payment_value)/1000000, 1),'M')
+WHEN SUM(p.payment_value) >= 1000 THEN CONCAT(ROUND(SUM(p.payment_value)/1000, 1), 'k')
+ELSE ROUND(SUM(p.payment_value), 0) END AS Total_Payment,
+round(Avg(p.payment_value),0) as Average_payment from Payments as p
+inner join Orders as o on p.order_id=o.order_id WHERE p.payment_type != 'not_defined'
+group by o.Daytype,p.payment_type order by Daytype DESC;
+
+ -- second KPI
+ select concat(round(count(o.order_id)/1000,1),"k") as 5_Star_CreditCard_Orders
+ from orders o inner join payments p on o.order_id=p.order_id 
+               inner join reviews r  on o.order_id=r.order_id 
+where p.payment_type="credit_card" and r.review_score=5;
+ 
+ 
+ -- Third KPI
+select concat(round(avg(o.average_days),0)," Days") as Avg_DeliveryTime_PetShop 
+from orders_items oi inner join products p on oi.product_id=p.product_id
+					 inner join Orders o on oi.order_id=o.order_id
+where p.product_category_name="pet_shop";
+
+
+-- Fourth KPI
+select c.country as country,round(avg(oi.price),0) as avgerage_price,
+round(avg(p.payment_value),0) as average_payment
+ from Orders o inner join customers c on o.customer_id=c.customer_id 
+			   inner join orders_items oi on o.order_id=oi.order_id 
+			   inner join payments p on o.order_id=p.order_id 
+group by c.country;
+
+
+-- 5th KPI
+select concat(r.review_score," Stars") as review_score,
+concat(round(avg(o.average_days),0)," Days") as average_Delivery 
+from reviews r inner join orders o on r.order_id=o.order_id 
+group by r.review_score order by r.review_score desc; 
+
